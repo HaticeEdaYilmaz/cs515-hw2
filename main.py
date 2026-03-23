@@ -11,7 +11,8 @@ from models.ResNet import ResNet, BasicBlock
 from models.mobilenet import MobileNetV2
 from train import run_training
 from test  import run_test
-
+from torchvision import models
+import torch.nn as nn
 
 # Fix for macOS SSL certificate verification error when downloading MNIST
 ssl._create_default_https_context = ssl._create_unverified_context
