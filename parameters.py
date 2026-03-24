@@ -20,6 +20,7 @@ def get_params():
     parser.add_argument("--pretrained", action="store_true")
     parser.add_argument("--resize", type=int,default = 224)
     parser.add_argument("--option", type=int, choices=[1, 2], default=1)
+    parser.add_argument("--label_smoothing", type=float, default=0.0)
 
     args = parser.parse_args()
 
@@ -58,6 +59,7 @@ def get_params():
         "batch_size":    args.batch_size,
         "learning_rate": args.lr,
         "weight_decay":  1e-4,
+        "label_smoothing": args.label_smoothing,
 
         # Misc
         "seed":         42,

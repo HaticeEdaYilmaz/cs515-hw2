@@ -84,7 +84,7 @@ def validate(model, loader, criterion, device):
 
 def run_training(model, params, device):
     train_loader, val_loader = get_loaders(params)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=params["label_smoothing"])
     optimizer = torch.optim.Adam( filter(lambda p: p.requires_grad, 
                                         model.parameters()),
                                         lr=params["learning_rate"],
