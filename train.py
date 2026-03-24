@@ -155,17 +155,37 @@ def run_training_distillation(student, teacher, params, device):
 
             with torch.no_grad():
                 teacher_out = teacher(imgs)
+                teacher_probs = F.softmax(teacher_out, dim=1)
+
+                num_classes = teacher_probs.size(1)
+                true_labels = labels.unsqueeze(1)
+
+                # probability of true class from teacher
+                p_true = teacher_probs.gather(1, true_labels)
+
+                # create modified distribution
+                teacher_modified = torch.full_like(teacher_probs, 0.0)
+
+                # assign equal probability to other classes
+                teacher_modified += (1 - p_true) / (num_classes - 1)
+
+                # assign teacher probability to true class
+                teacher_modified.scatter_(1, true_labels, p_true)
+
+            # student soft outputs
+            student_soft = F.log_softmax(student_out / T, dim=1)
 
             # distillation loss
-            student_soft = F.log_softmax(student_out / T, dim=1)
-            teacher_soft = F.softmax(teacher_out / T, dim=1)
-
-            distill_loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (T * T)
+            distill_loss = F.kl_div(
+                student_soft,
+                teacher_modified,
+                reduction='batchmean'
+            ) * (T * T)
 
             # normal CE loss
             ce_loss = F.cross_entropy(student_out, labels)
 
-            # combined
+            # combined loss
             loss = alpha * ce_loss + (1 - alpha) * distill_loss
 
             loss.backward()
@@ -175,7 +195,7 @@ def run_training_distillation(student, teacher, params, device):
             correct += student_out.argmax(1).eq(labels).sum().item()
             n += imgs.size(0)
 
-        # validation (normal CE)
+        # validation
         val_loss, val_acc = validate(student, val_loader, nn.CrossEntropyLoss(), device)
         scheduler.step()
 
