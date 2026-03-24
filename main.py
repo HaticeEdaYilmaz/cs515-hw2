@@ -144,10 +144,10 @@ def main():
     else:
         if params["mode"] in ("train", "both"):
             run_training(model, params, device)
-
     if params["mode"] in ("test", "both"):
+        model.load_state_dict(torch.load(params["load_path"], map_location=device))
         run_test(model, params, device)
-        
+
     print("\n=== Complexity ===")
     compute_flops(model, device)
 

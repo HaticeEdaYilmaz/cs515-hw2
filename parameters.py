@@ -70,6 +70,7 @@ def get_params():
         "device":       args.device,
         "save_path":    "cnn_distilled.pth",
         "log_interval": 100,
+        "load_path": "/content/cs515-hw2/best_model.pth",
 
         # CLI
         "mode":         args.mode,
