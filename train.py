@@ -114,3 +114,78 @@ def run_training(model, params, device):
 
     model.load_state_dict(best_weights)
     print(f"\nTraining done. Best val accuracy: {best_acc:.4f}")
+
+
+
+def run_training_distillation(student, teacher, params, device):
+    train_loader, val_loader = get_loaders(params)
+
+    optimizer = torch.optim.Adam(
+        student.parameters(),
+        lr=params["learning_rate"],
+        weight_decay=params["weight_decay"]
+    )
+
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+
+    T = 4.0
+    alpha = 0.5
+
+    best_acc = 0.0
+    best_weights = None
+
+    teacher.eval()
+    for p in teacher.parameters():
+        p.requires_grad = False
+
+    for epoch in range(1, params["epochs"] + 1):
+        print(f"\nEpoch {epoch}/{params['epochs']}")
+
+        student.train()
+        total_loss, correct, n = 0.0, 0, 0
+
+        for imgs, labels in train_loader:
+            imgs, labels = imgs.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+
+            # forward
+            student_out = student(imgs)
+
+            with torch.no_grad():
+                teacher_out = teacher(imgs)
+
+            # distillation loss
+            student_soft = F.log_softmax(student_out / T, dim=1)
+            teacher_soft = F.softmax(teacher_out / T, dim=1)
+
+            distill_loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (T * T)
+
+            # normal CE loss
+            ce_loss = F.cross_entropy(student_out, labels)
+
+            # combined
+            loss = alpha * ce_loss + (1 - alpha) * distill_loss
+
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item() * imgs.size(0)
+            correct += student_out.argmax(1).eq(labels).sum().item()
+            n += imgs.size(0)
+
+        # validation (normal CE)
+        val_loss, val_acc = validate(student, val_loader, nn.CrossEntropyLoss(), device)
+        scheduler.step()
+
+        print(f"  Train loss: {total_loss/n:.4f}  acc: {correct/n:.4f}")
+        print(f"  Val acc: {val_acc:.4f}")
+
+        if val_acc > best_acc:
+            best_acc = val_acc
+            best_weights = student.state_dict()
+            torch.save(best_weights, params["save_path"])
+            print(f"  Saved best student model (val_acc={best_acc:.4f})")
+
+    student.load_state_dict(best_weights)
+    print(f"\nDistillation done. Best val accuracy: {best_acc:.4f}")

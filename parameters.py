@@ -21,6 +21,8 @@ def get_params():
     parser.add_argument("--resize", type=int,default = 224)
     parser.add_argument("--option", type=int, choices=[1, 2], default=1)
     parser.add_argument("--label_smoothing", type=float, default=0.0)
+    parser.add_argument("--distill", action="store_true")
+    parser.add_argument("--teacher_path", type=str, default="")
 
     args = parser.parse_args()
 
@@ -60,11 +62,13 @@ def get_params():
         "learning_rate": args.lr,
         "weight_decay":  1e-4,
         "label_smoothing": args.label_smoothing,
+        "distill": args.distill,
+        "teacher_path": args.teacher_path,
 
         # Misc
         "seed":         42,
         "device":       args.device,
-        "save_path":    "best_model.pth",
+        "save_path":    "cnn_distilled.pth",
         "log_interval": 100,
 
         # CLI

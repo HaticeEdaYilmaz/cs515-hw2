@@ -2,6 +2,7 @@ import random
 import ssl
 import numpy as np
 import torch
+from train import run_training, run_training_distillation
 
 from parameters import get_params
 from models.MLP import MLP
@@ -17,6 +18,15 @@ import torch.nn as nn
 # Fix for macOS SSL certificate verification error when downloading MNIST
 ssl._create_default_https_context = ssl._create_unverified_context
 
+from thop import profile
+import torch
+
+def compute_flops(model, device):
+    model.eval()
+    dummy = torch.randn(1, 3, 32, 32).to(device)
+    flops, params = profile(model, inputs=(dummy,))
+    print(f"FLOPs: {flops}")
+    print(f"Params: {params}")
 
 def set_seed(seed):
     random.seed(seed)
@@ -122,11 +132,24 @@ def main():
     model = build_model(params).to(device)
     print(model)
 
-    if params["mode"] in ("train", "both"):
-        run_training(model, params, device)
+    if params.get("distill", False):
+        print("Running knowledge distillation...")
+
+        # build teacher
+        teacher = ResNet(BasicBlock, params["resnet_layers"], num_classes=params["num_classes"]).to(device)
+        teacher.load_state_dict(torch.load(params["teacher_path"], map_location=device))
+
+        run_training_distillation(model, teacher, params, device)
+
+    else:
+        if params["mode"] in ("train", "both"):
+            run_training(model, params, device)
 
     if params["mode"] in ("test", "both"):
         run_test(model, params, device)
+        
+    print("\n=== Complexity ===")
+    compute_flops(model, device)
 
 
 if __name__ == "__main__":
